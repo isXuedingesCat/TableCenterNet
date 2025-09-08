@@ -153,9 +153,9 @@ class MediaProcessor:
         results = []
         # Processed according to the path type
         if os.path.isfile(self.src_path):
-            if self.path.lower().endswith(self.image_suffix):
+            if self.src_path.lower().endswith(self.image_suffix):
                 results.append(self.process_image(self.src_path, show, save))
-            elif self.path.lower().endswith(self.video_suffix):
+            elif self.src_path.lower().endswith(self.video_suffix):
                 results.append(self.process_video(self.src_path, show, save))
         elif os.path.isdir(self.src_path):
             return self.process_directory(self.src_path, show, save)
