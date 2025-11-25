@@ -69,9 +69,7 @@ class TableValidator(BaseValidator):
         # Output the evaluation result
         for threshold, item in coords_evaluate_reuslts.items():
             print(f"IoU {threshold}: Precision=>{item['avg']['P']}, Recall=>{item['avg']['R']}, F1=>{item['avg']['F1']}, Accuracy(LogicCoords)=>{item['avg']['L_Acc']}")
-            print(
-                f"> Accuracy(Start Row)=>{item['avg']['Lsr_Acc']} Accuracy(End Row)=>{item['avg']['Ler_Acc']} Accuracy(Start Col)=>{item['avg']['Lsc_Acc']} Accuracy(End Col)=>{item['avg']['Lec_Acc']}"
-            )
+
         print(f"TEDS(only structure)=>{teds_evaluate_reuslts['avg']['TEDS']}")
         for threshold, item in icdar_ar_evaluate_reuslts.items():
             print(f"IoU {threshold}(Cell Adjacency Relation): Precision=>{item['P']}, Recall=>{item['R']}, F1=>{item['F1']}")
@@ -110,10 +108,6 @@ class TableValidator(BaseValidator):
                             cell_coords["x4"],
                             cell_coords["y4"],
                             cell["score"],
-                            cell["start_col"],
-                            cell["end_col"],
-                            cell["start_row"],
-                            cell["end_row"],
                         ]
                     )
 
@@ -138,8 +132,7 @@ class TableValidator(BaseValidator):
             for polygon in pred_result["result"][0]:
                 x1, y1, x2, y2, x3, y3, x4, y4 = [float(num) for num in polygon[:8]]
                 pred_physical_coord = [[x1, y1], [x2, y2], [x3, y3], [x4, y4]]
-                pred_logic_coord = [max(0, int(num) - 1) for num in polygon[9:13]]  # [*polygon[11:13], *polygon[9:11]]
-                pred_cells.append([pred_physical_coord, pred_logic_coord])
+                pred_cells.append([pred_physical_coord])
 
             # Get a list of standard cells
             gt_cells = []
@@ -154,8 +147,7 @@ class TableValidator(BaseValidator):
                 x4, y4 = seg_mask[6], seg_mask[7]
                 # Take out the logical coordinates from the tag
                 gt_physical_coord = [[x1, y1], [x2, y2], [x3, y3], [x4, y4]]
-                gt_logic_coord = [int(item) for item in ann["logic_axis"][0][:4]]
-                gt_cells.append([gt_physical_coord, gt_logic_coord, ann.get("table_id")])
+                gt_cells.append([gt_physical_coord, ann.get("table_id")])
 
             evalute_args_list.append((image_name, pred_cells, gt_cells))
 
@@ -328,12 +320,7 @@ class TableValidator(BaseValidator):
                         "num_images": "Number of images",
                         "P": "Precision",
                         "R": "Recall",
-                        "F1": "F1",
-                        "L_Acc": "Logical Coordinate Accuracy (L_Acc)",
-                        "Lsr_Acc": "Start Row accuracy (Lsr_Acc)",
-                        "Ler_Acc": "End Row Accuracy (Ler_Acc)",
-                        "Lsc_Acc": "Start Column Accuracy (Lsc_Acc)",
-                        "Lec_Acc": "End Column Accuracy (Lec_Acc)",
+                        "F1": "F1"
                     },
                     inplace=True,
                 )

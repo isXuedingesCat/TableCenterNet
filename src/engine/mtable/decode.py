@@ -14,86 +14,7 @@ from engine.table.utils import _tranpose_and_gather_feat
 from shapely.geometry import Polygon
 
 
-# def get_logic_coords(lc, span, center_indexes):
-#     """
-#     Get the corner logical coordinates of the cell
-
-#     Returns:
-#         - logic_coords: The corner logical coordinates of the cell, (4), where 4 is the four elements of (start_col, end_col, start_row, end_row).
-#     """
-#     one = torch.tensor(1.0, dtype=lc.dtype, device=lc.device)
-
-#     # Get the logical coordinates of the cell start
-#     start_lcoords = _tranpose_and_gather_feat(lc, center_indexes)  # BxNx2
-#     start_lcoords = torch.max(torch.round(start_lcoords), one)
-
-#     # Get the span
-#     cell_spans = _tranpose_and_gather_feat(span, center_indexes)  # BxNx2
-#     cell_spans = torch.max(torch.floor(cell_spans), one)
-
-#     end_lcoords = start_lcoords + cell_spans - 1
-
-#     logic_coords = torch.cat((start_lcoords, end_lcoords), dim=2)
-
-#     logic_coords[..., [1, 2]] = logic_coords[..., [2, 1]]
-
-#     return logic_coords
-
-
-def get_logic_coords(lc_logic, cell_span):
-    """
-    Get the corner logical coordinates of the cell
-
-    Returns:
-        - logic_coords: The corner logical coordinates of the cell, (4), where 4 is the four elements of (start_col, end_col, start_row, end_row).
-    """
-    # Get the cell row and column span
-    col_span, row_span = max(1, int(torch.round(cell_span[0]))), max(1, int(torch.round(cell_span[1])))
-
-    # Get the logical coordinates of the corner column row of the cell
-    col_logic_coords = []
-    row_logic_coords = []
-    for logic in lc_logic:
-        col, row = max(1, int(torch.round(logic[0]))), max(1, int(torch.round(logic[1])))
-        col_logic_coords.append(col)
-        row_logic_coords.append(row)
-
-    start_col, end_col, start_row, end_row = 0, 0, 0, 0
-
-    # Calculate cell cross-column information
-    if col_logic_coords[0] == col_logic_coords[3]:
-        start_col = col_logic_coords[0]
-        end_col = start_col + col_span - 1
-    elif col_logic_coords[1] == col_logic_coords[2]:
-        end_col = max(col_span + 1, col_logic_coords[1]) - 1
-        start_col = end_col + 1 - col_span
-    else:
-        if torch.abs(lc_logic[0][0] - lc_logic[3][0]) <= torch.abs(lc_logic[1][0] - lc_logic[2][0]):
-            start_col = max(1, int(torch.round((lc_logic[0][0] + lc_logic[3][0]) / 2.0)))
-            end_col = start_col + col_span - 1
-        else:
-            end_col = max(col_span + 1, int(torch.round((lc_logic[1][0] + lc_logic[2][0]) / 2.0))) - 1
-            start_col = end_col + 1 - col_span
-
-    # Calculate cell cross-row information
-    if row_logic_coords[0] == row_logic_coords[1]:
-        start_row = row_logic_coords[0]
-        end_row = start_row + row_span - 1
-    elif row_logic_coords[2] == row_logic_coords[3]:
-        end_row = max(row_span + 1, row_logic_coords[2]) - 1
-        start_row = end_row + 1 - row_span
-    else:
-        if torch.abs(lc_logic[0][1] - lc_logic[1][1]) <= torch.abs(lc_logic[2][1] - lc_logic[3][1]):
-            start_row = max(1, int(torch.round((lc_logic[0][1] + lc_logic[1][1]) / 2.0)))
-            end_row = start_row + row_span - 1
-        else:
-            end_row = max(row_span + 1, int(torch.round((lc_logic[2][1] + lc_logic[3][1]) / 2.0))) - 1
-            start_row = end_row + 1 - row_span
-
-    return torch.Tensor([start_col, end_col, start_row, end_row])
-
-
-def cells_decode(heatmap, reg, ct2cn, cn2ct, lc, span, center_k, corner_k, center_thresh, corner_thresh, corners=False):
+def cells_decode(heatmap, reg, ct2cn, cn2ct, center_k, corner_k, center_thresh, corner_thresh, corners=False):
     """
     Cell decoding function (only supported when batch is 1)
 
@@ -102,8 +23,6 @@ def cells_decode(heatmap, reg, ct2cn, cn2ct, lc, span, center_k, corner_k, cente
         - reg: Offset vector graph of the center point or corner point, (batch, 2, height, width)
         - ct2cn: Vector graph with corner point pointing to center point, (batch, 8, height, width)
         - cn2ct: Vector graph of center point pointing to corner point, (batch, 8, height, width)
-        - lc: corner logical coordinates, (batch, 2, height, width)
-        - span: cell span, (batch, 2, height, width)
         - center_k: The maximum number of center points
         - corner_k: The maximum number of corners
         - center_thresh: The center point threshold, if the center point score is less than this threshold, it will not participate in the subsequent calculation
@@ -123,12 +42,6 @@ def cells_decode(heatmap, reg, ct2cn, cn2ct, lc, span, center_k, corner_k, cente
     # Get information about corners
     corner_scores, corner_indexes, corner_xs, corner_ys, corner_polygons = polygons_decode(heatmap[:, 1:2, :, :], cn2ct, reg, K=corner_k)
 
-    # Get Span
-    cell_spans = _tranpose_and_gather_feat(span, center_indexes)
-
-    # Get the logical coordinates
-    corner_logics = _tranpose_and_gather_feat(lc, corner_indexes)
-
     # Get Polygon in CPU state
     if center_polygons.device.type != "cpu":
         center_polygons_cpu = center_polygons.cpu()
@@ -146,9 +59,6 @@ def cells_decode(heatmap, reg, ct2cn, cn2ct, lc, span, center_k, corner_k, cente
     # Create the number of corrections and the number of repeated corrections for cell corners
     cells_corner_count = torch.zeros(center_polygons.shape[:-1] + (2,), dtype=torch.int32)
 
-    # Create the logical coordinates of the cell
-    logic_coords = torch.zeros(center_polygons.shape[:-1] + (4,), dtype=torch.int32)
-
     # Traverse the center point
     for i in iq.center_indices:
         # Get the polygon corresponding to the current center point (in this case, it should be a quadrilateral)
@@ -161,8 +71,6 @@ def cells_decode(heatmap, reg, ct2cn, cn2ct, lc, span, center_k, corner_k, cente
         # Record the number of cell corner corrections and the number of repeated corrections
         corner_count = 0
         repeat_corner_count = 0
-
-        lc_logic = [None, None, None, None]
 
         # Traverse corners
         # for j in iq.corner_indices:
@@ -195,90 +103,15 @@ def cells_decode(heatmap, reg, ct2cn, cn2ct, lc, span, center_k, corner_k, cente
                     corner_count += 1
                     corrected_cell_corner[0] = corner_x
                     corrected_cell_corner[1] = corner_y
-                    lc_logic[index] = corner_logics[0, j]
                 elif dist_square(origin_corner_x, origin_corner_y, corrected_corner_x, corrected_corner_y) >= dist_square(origin_corner_x, origin_corner_y, corner_x, corner_y):
                     repeat_corner_count += 1
                     corrected_cell_corner[0] = corner_x
                     corrected_cell_corner[1] = corner_y
-                    lc_logic[index] = corner_logics[0, j]
 
         cells_corner_count[0, i, 0] = corner_count
         cells_corner_count[0, i, 1] = repeat_corner_count
 
-        # Update the logical coordinates of the current cell
-        for j in range(4):
-            if lc_logic[j] is None:
-                x, y = corrected_cell[j].tolist()
-                x = 0 if x < 0 else (lc.shape[3] - 1 if x >= lc.shape[3] else int(x))
-                y = 0 if y < 0 else (lc.shape[2] - 1 if y >= lc.shape[2] else int(y))
-                lc_logic[j] = lc[0, :, y, x]
-
-        logic_coords[0, i, :] = get_logic_coords(lc_logic, cell_spans[0, i].clone())
-
     if corners:
-        return corrected_cells, center_scores, cells_corner_count, logic_coords.to(reg.device), torch.cat([corner_xs, corner_ys, corner_scores], dim=2)
+        return corrected_cells, center_scores, cells_corner_count, torch.cat([corner_xs, corner_ys, corner_scores], dim=2)
 
-    return corrected_cells, center_scores, cells_corner_count, logic_coords.to(reg.device)
-
-
-def simple_cells_decode(heatmap, reg, ct2cn, cn2ct, lc, span, center_k, corner_k, center_thresh, corners=False):
-    """
-    Simple cell decoding function (only supported when batch is 1)
-
-    Args:
-        - heatmap: (batch, 2, height, width)
-        - reg: Offset vector graph of the center point or corner point, (batch, 2, height, width)
-        - ct2cn: Vector graph with corner point pointing to center point, (batch, 8, height, width)
-        - cn2ct: Vector graph of center point pointing to corner point, (batch, 8, height, width)
-        - lc: corner logical coordinates, (batch, 2, height, width)
-        - span: cell span, (batch, 2, height, width)
-        - center_k: The maximum number of center points
-        - corner_k: The maximum number of corners
-        - center_thresh: The center point threshold, if the center point score is less than this threshold, it will not participate in the subsequent calculation
-        - corners: Whether to return corner coordinates
-
-    Returns:
-        - cells: cell, (batch, center_k, 8), where center_k is the number of center points, and 8 is the xy coordinates of the four corners of the cell, i.e., top left, top right, bottom left, bottom right
-        - cells_scores: Cell fractions, (batch, center_k, 1), where the scores are sorted from highest to lowest
-        - logic_coords: Logical coordinates of the cell
-    """
-
-    # Get information about the center point
-    center_scores, center_indexes, center_xs, center_ys, center_polygons = polygons_decode(heatmap[:, 0:1, :, :], ct2cn, reg, K=center_k)
-
-    # Get Span
-    cell_spans = _tranpose_and_gather_feat(span, center_indexes)
-
-    # Get the number of center_polygon and corner_polygon
-    num_center_polygons = center_polygons.shape[1]
-
-    # Create the logical coordinates of the cell
-    logic_coords = torch.zeros(center_polygons.shape[:-1] + (4,), dtype=torch.int32)
-
-    # Traverse the center point
-    for i in range(num_center_polygons):
-        # If the center point score is below the threshold, exit because center_scores is sorted from high to low
-        if center_scores[0, i, 0] < center_thresh:
-            break
-
-        # Get the cell corresponding to the current center point
-        cell = center_polygons[0, i, :].view(-1, 2)
-
-        lc_logic = [None, None, None, None]
-
-        # Update the logical coordinates of the current cell
-        for j in range(4):
-            if lc_logic[j] is None:
-                x, y = cell[j].tolist()
-                x = 0 if x < 0 else (lc.shape[3] - 1 if x >= lc.shape[3] else int(x))
-                y = 0 if y < 0 else (lc.shape[2] - 1 if y >= lc.shape[2] else int(y))
-                lc_logic[j] = lc[0, :, y, x]
-
-        logic_coords[0, i, :] = get_logic_coords(lc_logic, cell_spans[0, i])
-
-    if corners:
-        # Get information about corners
-        corner_scores, corner_indexes, corner_xs, corner_ys, corner_polygons = polygons_decode(heatmap[:, 1:2, :, :], cn2ct, reg, K=corner_k)
-        return center_polygons, center_scores, logic_coords.to(reg.device), torch.cat([corner_xs, corner_ys, corner_scores], dim=2)
-
-    return center_polygons, center_scores, logic_coords.to(reg.device)
+    return corrected_cells, center_scores, cells_corner_count, None

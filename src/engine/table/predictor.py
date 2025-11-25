@@ -130,12 +130,9 @@ class TablePredictor(BasePredictor):
             np.save(os.path.join(self.args.save_dir, meta["image_name"]), lc.detach().cpu()[0].numpy())
 
             # Decoding of cell physical coordinates
-            cells, cells_scores, cells_corner_count, *rets = cells_decode(
+            cells, cells_scores, cells_corner_count, corners = cells_decode(
                 hm, reg, ct2cn, cn2ct, self.args.center_k, self.args.corner_k, self.args.center_thresh, self.args.corner_thresh, self.args.save_corners
             )
-
-            # Decoding of cell logical coordinates
-            logic_coords = logic_coords_decode(lc, cells)
 
             # Reduce the score of a cell based on the number of times it is optimized for corners
             is_modify = False
@@ -148,7 +145,7 @@ class TablePredictor(BasePredictor):
                     is_modify = True
 
             # Merge outputs
-            detections = torch.cat([cells, cells_scores, logic_coords], dim=2)
+            detections = torch.cat([cells, cells_scores], dim=2)
 
             # If the score is modified, the order will be reordered
             if is_modify:
@@ -156,7 +153,7 @@ class TablePredictor(BasePredictor):
                 detections = detections.gather(1, sorted_inds.expand_as(detections))
 
             # Returns the test result
-            return detections, rets[0] if self.args.save_corners else None, meta
+            return detections, corners, meta
 
     def post_process(self, detections, corners, meta, *args, **kwargs):
         # Get the prediction results of the model
@@ -197,7 +194,6 @@ class TablePredictor(BasePredictor):
             scale, pad = self.debugger.IMAGE_SCALE, self.debugger.IMAGE_PAD
 
             self.debugger.draw_polygons(result_image, detections[:, :8] * scale + pad, color=(0, 0, 255))
-            self.debugger.draw_logic_coords(result_image, detections[:, 9:13], detections[:, 0:2] * scale + pad)
 
             return result_image
 

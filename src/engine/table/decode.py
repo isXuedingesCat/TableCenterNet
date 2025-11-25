@@ -302,7 +302,7 @@ def cells_decode(heatmap, reg, ct2cn, cn2ct, center_k, corner_k, center_thresh, 
     if corners:
         return corrected_cells, center_scores, cells_corner_count, torch.cat([corner_xs, corner_ys, corner_scores], dim=2)
 
-    return corrected_cells, center_scores, cells_corner_count
+    return corrected_cells, center_scores, cells_corner_count, None
 
 
 def logic_coords_decode(lc, cells):

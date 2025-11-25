@@ -15,4 +15,4 @@ from .dataset import get_dataset
 
 class MTableTrainer(TableTrainer):
     def __init__(self, args):
-        super().__init__(args, loss=MTableLoss((1, 1, 1, 1, 1)), dataset=get_dataset(args))
+        super().__init__(args, loss=MTableLoss((1, 1, 1, 1)), dataset=get_dataset(args))

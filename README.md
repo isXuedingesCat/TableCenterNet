@@ -43,6 +43,24 @@ dependencies:
       - tqdm==4.66.5
 ```
 
+### UV install Requirements
+
+```bash
+# linux 安装UV
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# 构建虚拟环境
+uv venv --python python3.8
+
+# 安装torch (https://pytorch.org/get-started/previous-versions/)
+# CUDA 12.4
+pip install torch==2.4.0 torchvision==0.19.0 torchaudio==2.4.0 --index-url https://download.pytorch.org/whl/cu124
+# CPU only
+# pip install torch==2.4.0 torchvision==0.19.0 torchaudio==2.4.0 --index-url https://download.pytorch.org/whl/cpu
+
+uv pip install -r requirements.txt
+```
+
 ### SciTSR
 This package is mainly used to evaluate adjacency relationship.
 

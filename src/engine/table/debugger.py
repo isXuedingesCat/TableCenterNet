@@ -142,14 +142,3 @@ class Debugger(object):
         for point in points:
             point = np.array(point[:2], dtype=np.int32)
             cv2.circle(image, (point[0], point[1]), thickness, color, thickness)
-
-    @staticmethod
-    def draw_logic_coords(image, logic_coords, points, gb_color=(219, 112, 147), font_color=(0, 0, 0), thickness=1):
-        for i, logic_coord in enumerate(logic_coords):
-            point = np.array(points[i][:2], dtype=np.int32)
-            logic_coord = np.array(logic_coord, dtype=np.int32)
-            font = cv2.FONT_HERSHEY_SIMPLEX
-            txt = "{},{},{},{}".format(logic_coord[0], logic_coord[1], logic_coord[2], logic_coord[3])
-            cat_size = cv2.getTextSize(txt, font, 0.3, 2)[0]
-            cv2.rectangle(image, (point[0], point[1] - cat_size[1] - 2), (point[0] + cat_size[0], point[1] - 2), gb_color, -1)
-            cv2.putText(image, txt, (point[0], point[1] - 2), font, 0.30, font_color, thickness=thickness, lineType=cv2.LINE_AA)

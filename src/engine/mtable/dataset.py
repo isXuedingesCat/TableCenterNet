@@ -226,10 +226,6 @@ class WTWDataset(COCO):
             "ct2cn": ct2cn,
             "cn2ct": cn2ct,
             "ct_cn_ind": ct_cn_ind,
-            "lc": lc,
-            "lc_mask": lc_mask,
-            "lc_ind": lc_ind,
-            "lc_span": lc_span,
         }
 
         return element

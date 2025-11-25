@@ -31,10 +31,11 @@ class DCNv2(nn.Module):
         self.weight = nn.Parameter(torch.Tensor(out_channels, in_channels, *self.kernel_size))
         self.bias = nn.Parameter(torch.Tensor(out_channels))
 
-        channels_ = self.deformable_groups * 3 * self.kernel_size[0] * self.kernel_size[1]
+        self.channels_ = self.deformable_groups * 3 * self.kernel_size[0] * self.kernel_size[1]
+        # channels_ = self.deformable_groups * 3 * self.kernel_size[0] * self.kernel_size[1]
         self.conv_offset_mask = nn.Conv2d(
             self.in_channels,
-            channels_,
+            self.channels_,
             kernel_size=self.kernel_size,
             stride=self.stride,
             padding=self.padding,
@@ -55,8 +56,11 @@ class DCNv2(nn.Module):
 
     def forward(self, x):
         out = self.conv_offset_mask(x)
-        o1, o2, mask = torch.chunk(out, 3, dim=1)
-        offset = torch.cat((o1, o2), dim=1)
+        # o1, o2, mask = torch.chunk(out, 3, dim=1)
+        # offset = torch.cat((o1, o2), dim=1)
+        
+        offset, mask = torch.split(out, [int((self.channels_*2)/3), int(self.channels_/3)], dim=1)
+        
         mask = torch.sigmoid(mask)
 
         output = deform_conv2d(x, offset=offset, weight=self.weight.to(x.dtype), bias=self.bias.to(x.dtype), stride=self.stride, padding=self.padding, dilation=self.dilation, mask=mask)

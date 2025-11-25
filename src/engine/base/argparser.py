@@ -19,9 +19,6 @@ class BaseArgParser(object):
     def __init__(self):
         self.parser = argparse.ArgumentParser()
 
-        # *** task
-        self.parser.add_argument("task", type=str, help="Tasks that need to be run.", choices=self._get_task_choices())
-
         # *** Create a child parser
         subparsers = self.parser.add_subparsers(dest="mode", required=True, help="The running mode of the task, currently including 'train', 'val', 'predict' three modes.")
 
@@ -173,7 +170,7 @@ class BaseArgParser(object):
 
         # *** Path handling
         # Experimental storage path processing
-        self.args.project = self.args.project or os.path.join(DEFAULT_CFG["dirs"]["runs_dir"], self.args.task)
+        self.args.project = self.args.project or DEFAULT_CFG["dirs"]["runs_dir"]
         self.args.project = os.path.join(ROOT_DIR, self.args.project)
         self.args.name = self.args.name or self.args.mode
         # Set the path where the experiment will be saved

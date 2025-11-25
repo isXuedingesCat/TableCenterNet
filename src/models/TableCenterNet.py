@@ -21,7 +21,8 @@ class DeformConv(nn.Module):
         super(DeformConv, self).__init__()
         self.actf = nn.Sequential(nn.BatchNorm2d(cho, momentum=BN_MOMENTUM), nn.ReLU(inplace=True))
 
-        self.conv = DCNv2(chi, cho, kernel_size=3, stride=1, padding=1, dilation=1, deformable_groups=1)
+        # self.conv = DCNv2(chi, cho, kernel_size=3, stride=1, padding=1, dilation=1, deformable_groups=1)
+        self.conv = nn.Conv2d(in_channels=chi, out_channels=cho,kernel_size=3,stride=1,padding=1,bias=True)
 
     def forward(self, x):
         x = self.conv(x)

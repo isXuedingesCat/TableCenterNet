@@ -1,16 +1,14 @@
 mkdir -p ./Train/ICDAR2013/star/weights
 cp ./checkpoints/WTW/star/model_last.pth ./Train/ICDAR2013/star/weights/
-# Fine-tune for 100 epochs, starting from the 200th.
-python src/main.py mtable train \
+python src/main.py train \
     --model src/cfg/models/startsr-mtable.yaml \
     --data src/cfg/datasets/ICDAR2013.yaml \
-    --epochs 300 \
-    --device 0,1 \
+    --epochs 4 \
+    --device 0 \
     --master_batch -1 \
-    --batch 22 \
-    --workers 32 \
-    --lr_step 270,290 \
-    --val_epochs 10 \
+    --batch 1 \
+    --workers 2 \
+    --lr_step 1,2 \
+    --val_epochs 1 \
     --project Train/ICDAR2013 \
-    --name star \
-    --resume
+    --name star 

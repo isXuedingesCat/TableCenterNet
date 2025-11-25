@@ -33,7 +33,7 @@ class TableTrainer(BaseTrainer):
         optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, betas=(0.9, 0.98), eps=1e-9)
 
         # Loss function
-        loss = TableLoss((1, 1, 1, 1, 1)) if loss is None else loss
+        loss = TableLoss((1, 1, 1, 1)) if loss is None else loss
         loss_stats = loss.loss_stats
 
         # Verbose log output is not enabled

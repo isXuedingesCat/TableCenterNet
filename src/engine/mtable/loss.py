@@ -111,16 +111,15 @@ class LogicCoordLoss(torch.nn.Module):
 
 
 class MTableLoss(torch.nn.Module):
-    loss_stats = ["loss", "hm", "reg", "ct2cn", "cn2ct", "icn2ct", "lc", "lsd", "ls"]
+    loss_stats = ["loss", "hm", "reg", "ct2cn", "cn2ct", "icn2ct"]
 
     def __init__(self, loss_weights):
         super(MTableLoss, self).__init__()
-        self.hm_weight, self.reg_weight, self.ct2cn_weight, self.cn2ct_weight, self.lc_weight = loss_weights
+        self.hm_weight, self.reg_weight, self.ct2cn_weight, self.cn2ct_weight = loss_weights
 
         self.hm_crit = FocalLoss()
         self.reg_crit = RegL1Loss()
         self.vec_pair_crit = VecPairLoss()
-        self.lc_crit = LogicCoordLoss()
 
     def forward(self, outputs, batch):
         output = outputs[-1]
@@ -134,14 +133,11 @@ class MTableLoss(torch.nn.Module):
             output["ct2cn"], batch["ct_ind"], batch["ct_mask"], batch["ct2cn"], output["cn2ct"], batch["cn_ind"], batch["cn_mask"], batch["cn2ct"], batch["ct_cn_ind"]
         )
 
-        lc_coord_loss, lc_span_diff_loss, lc_span_loss = self.lc_crit(output["lc"], output["sp"], batch["lc_ind"], batch["lc_span"], batch["lc"], batch["lc_mask"], batch["ct_ind"], batch["ct_mask"])
-
         loss = (
             self.hm_weight * hm_loss
             + self.reg_weight * reg_loss
             + self.ct2cn_weight * ct2cn_loss
             + self.cn2ct_weight * (cn2ct_loss + invalid_cn2ct_loss)
-            + self.lc_weight * (lc_coord_loss + lc_span_diff_loss + lc_span_loss)
         )
 
         loss_stats = {
@@ -151,9 +147,6 @@ class MTableLoss(torch.nn.Module):
             "ct2cn": ct2cn_loss,
             "cn2ct": cn2ct_loss,
             "icn2ct": invalid_cn2ct_loss,
-            "lc": lc_coord_loss,
-            "lsd": lc_span_diff_loss,
-            "ls": lc_span_loss,
         }
 
         return loss, loss_stats

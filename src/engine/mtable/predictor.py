@@ -10,10 +10,7 @@ LastEditTime: 2024-10-29 13:55:01
 """
 import torch
 from engine.table.predictor import TablePredictor
-from .decode import cells_decode, simple_cells_decode
-import numpy as np
-import os
-
+from .decode import cells_decode
 
 class MTablePredictor(TablePredictor):
     def __init__(self, args):
@@ -31,8 +28,6 @@ class MTablePredictor(TablePredictor):
             reg = output["reg"]
             ct2cn = output["ct2cn"]
             cn2ct = output["cn2ct"]
-            lc = output["lc"]
-            sp = output["sp"]
 
             # Output the inference result graph
             # np.save(os.path.join(self.args.save_dir, meta["image_name"]), lc.detach().cpu()[0].numpy())
@@ -41,24 +36,21 @@ class MTablePredictor(TablePredictor):
             is_modify = False
 
             # Decoding of cell physical coordinates
-            if self.args.not_relocate:
-                cells, cells_scores, logic_coords, *rets = simple_cells_decode(hm, reg, ct2cn, cn2ct, lc, sp, self.args.center_k, self.args.corner_k, self.args.center_thresh, self.args.save_corners)
-            else:
-                cells, cells_scores, cells_corner_count, logic_coords, *rets = cells_decode(
-                    hm, reg, ct2cn, cn2ct, lc, sp, self.args.center_k, self.args.corner_k, self.args.center_thresh, self.args.corner_thresh, self.args.save_corners
-                )
+            cells, cells_scores, cells_corner_count, corners = cells_decode(
+                hm, reg, ct2cn, cn2ct, self.args.center_k, self.args.corner_k, self.args.center_thresh, self.args.corner_thresh, self.args.save_corners
+            )
 
-                # Reduce the score of a cell based on the number of times it is optimized for corners
-                for i in range(cells.size(1)):
-                    if cells_scores[0, i, 0] < self.args.center_thresh:
-                        break
+            # Reduce the score of a cell based on the number of times it is optimized for corners
+            for i in range(cells.size(1)):
+                if cells_scores[0, i, 0] < self.args.center_thresh:
+                    break
 
-                    if cells_corner_count[0, i, :].sum() <= self.cell_min_optimize_count:
-                        cells_scores[0, i, 0] *= self.cell_decay_thresh
-                        is_modify = True
+                if cells_corner_count[0, i, :].sum() <= self.cell_min_optimize_count:
+                    cells_scores[0, i, 0] *= self.cell_decay_thresh
+                    is_modify = True
 
             # Merge outputs
-            detections = torch.cat([cells, cells_scores, logic_coords], dim=2)
+            detections = torch.cat([cells, cells_scores], dim=2)
 
             # If the score is modified, the order will be reordered
             if is_modify:
@@ -66,4 +58,4 @@ class MTablePredictor(TablePredictor):
                 detections = detections.gather(1, sorted_inds.expand_as(detections))
 
             # Returns the test result
-            return detections, rets[0] if self.args.save_corners else None, meta
+            return detections, corners,  meta
